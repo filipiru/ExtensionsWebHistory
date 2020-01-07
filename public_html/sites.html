@@ -2,28 +2,30 @@
 
 <html>
 	<head>
-		<title>Override New Tab</title>
+		<title>History New Tab</title>
 		<meta charset="utf-8">
 		<link rel="stylesheet" href="vendor/bootstrap.min.css"/>
 		<link rel="stylesheet" href="style.css"/>
 	</head>
 	<body>
 		<div class="container">
-			<h3>Top Site and new tab override example</h3>
-			<p>For more examples see this
-				<a href="https://github.com/mdn/webextensions-examples">github repository</a>
-				or check the <a href="https://developer.mozilla.org/en-US/Add-ons/WebExtensions">WebExtension
-					documentation</a>.
-			</p>
+			<div class="col-sm-6">
+				<h3>Top Visited Page (all time)</h3>
+				<div id="site-list"></div>
 
-			<div id="site-list">
+				<div style="text-align: center;">
+					<h4 id="last-visit-url">#</h4>
+					<div id="last-visits">
+					</div>
+				</div>
+			</div>
+			<div class="col-sm-6">
+				<h3>History Items (last visited)</h3>
+				<div id="history-items"></div>
 			</div>
 		</div>
-		<div style="text-align: center;">
-			<h4 id="last-visit-url">#</h4>
-			<p id="last-visits">
-			</p>
-		</div>
+
+
 
 		<script src="sites.js"></script>
 	</body>
