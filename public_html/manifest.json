@@ -3,7 +3,7 @@
 	"name": "Test WebHistory",
 	"version": "0.1",
 	"chrome_url_overrides": {
-		"newtab": "sites.html"
+		"newtab": "last-history-root-domain.html"
 	},
 	"permissions": [
 		"topSites",
