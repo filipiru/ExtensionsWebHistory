@@ -1,62 +1,86 @@
-/* * LAST HISTORY ROOT DOMAIN * */
-/* global browser, _ */
+/* * APP History New Tab * */
+/* global browser, _, moment */
 
-const app = {history: {}, storage: {}, utils: {}, render: {}};
+const app = {history: {}, utils: {}, render: {}};
 app.init = function () {
-	app.history.search();
+	app.lastHistory(20);
+	app.topSites();
+	app.lastSiteVisit();
 	//console.log('init()', app);
 };
-app.history.search = function (searchText = "") {
+app.lastSiteVisit = function () {
 	browser.history.search({
-		text: searchText,
+		text: "",
 		startTime: 0,
-		maxResults: 20
+		maxResults: 1
 	}).then((sites) => {
 		if (sites.length) {
-			//console.log('history.search()', sites[0]);
-			app.history.process(sites);
+			let url = sites[0].url;
+			//console.log("lastSiteVisit() url: ", url);
+			document.getElementById('last-visits-url')
+			.innerText = url;
+
+			browser.history.getVisits({
+				url: url
+			}).then((visit) => {
+				//console.log("lastSiteVisit() visit: ", visit);
+				document.getElementById('last-visits-url').innerText += " ( Visit count: " + visit.length + " )";
+				let ul = app.render.listGroupHorizontal(visit);
+				document.getElementById('last-visits').appendChild(ul);
+			});
 		}
 	});
 };
-app.history.process = function (sites) {
-	//console.log('history.process()', sites);
+app.topSites = function ()
+{
+	browser.topSites.get()
+	.then((sites) => {
+		sites = app.history.modifyHistoryItems(sites);
+		app.history.renderTopSites(sites);
+		//console.log('topSites()', sites);
+	});
+};
+app.lastHistory = function (limit, searchText = "") {
+	browser.history.search({
+		text: searchText,
+		startTime: 0,
+		maxResults: limit
+	}).then((sites) => {
+		//console.log('lastHistory()', sites[0]);
+		sites = app.history.modifyHistoryItems(sites);
+		let groupByHostname = _.groupBy(sites, 'urlHostname');
+		//console.log('lastHistory() _.groupBy', groupByHostname);
+		app.history.render(sites);
+		app.history.renderAccordion(groupByHostname);
+	});
+};
+app.history.modifyHistoryItems = function (sites) {
+	//console.log('history.modifyHistoryItems()', sites);
 
 	for (let site of sites) {
 		var url = new URL(site.url);
 		site.urlHostname = url.hostname;
 		site.urlPathname = url.pathname;
 		site.urlHost = url.protocol + '//' + url.host;
-		//console.log('history.process() site', site);
+		//console.log('history.modifyHistoryItems() site', site);
 	}
 
-	let groupByHostname = _.groupBy(sites, 'urlHostname');
-
-	//console.log('history.process() _.groupBy', groupByHostname);
-	//app.history.render(sites);
-	//app.history.renderGroup(groupByHostname);
-	app.history.renderAccord(groupByHostname);
-
+	return sites;
 };
-app.history.renderGroup = function (sitesGroupByHostname) {
-	let sites = sitesGroupByHostname;
-	//console.log('history.renderAcord()', sites);
-
-	let div = document.getElementById('accordionHostname');
-
-	for (let hostname in sites) {
-		let h4 = document.createElement('h4');
-		h4.innerText = hostname;
-
-		//console.log('history.renderAcord()', sites[hostname]);
-		let ul = app.render.listGroupUl(sites[hostname]);
-
-		div.appendChild(h4);
-		div.appendChild(ul);
+app.history.renderTopSites = function (sites)
+{
+	//console.log('history.renderTopSites()', sites);
+	let div = document.getElementById('topSites');
+	if (!sites.length) {
+		div.innerText = 'No sites returned from the topSites API.';
+		return;
 	}
+	let ul = app.render.listGroupUl(sites);
+	div.appendChild(ul);
 };
-app.history.renderAccord = function (sitesGroupByHostname) {
+app.history.renderAccordion = function (sitesGroupByHostname) {
 	let sites = sitesGroupByHostname;
-	//console.log('history.renderAcord()', sites);
+	//console.log('history.renderAccordion()', sites);
 
 	let div = document.getElementById('accordionHostname');
 	let i = 0;
@@ -69,7 +93,7 @@ app.history.renderAccord = function (sitesGroupByHostname) {
 	}
 };
 app.history.render = function (sites) {
-	let div = document.getElementById('history-items');
+	let div = document.getElementById('historyItems');
 	if (!sites.length) {
 		div.innerText = 'No sites returned from the topSites API.';
 		return;
@@ -90,13 +114,17 @@ app.utils.urlHostname = function (urlHostname) {
 		return iild + " (" + tld + ")";
 	}
 	//console.log(preprocesorDomain.join('.'));
-
 	return iild + "." + preprocesorDomain.join('.') + " (" + tld + ")";
 };
 app.utils.urlPathname = function (urlPathname) {
 	let pathName = urlPathname.split('/');
 	pathName = pathName.join(' > ');
 	return pathName;
+};
+app.utils.extractKeywords = function (text) {
+	text = text.toLowerCase();
+	let res = text.match(/\S{4,}/g);
+	return _.uniq(res);
 };
 app.render.accordCard = function (index, title, body, divAccord) {
 	let bodyList = app.render.listGroupUl(body);
@@ -119,6 +147,18 @@ app.render.accordCard = function (index, title, body, divAccord) {
 	div.appendChild(divBody);
 	return div;
 };
+app.render.listGroupHorizontal = function (visits) {
+	//console.log('render.listGroupHorizontal()', visits);
+	let ul = document.createElement('ul');
+	ul.className = 'list-group list-group-horizontal';
+	for (let visit of visits) {
+		let li = document.createElement('li');
+		li.className = 'list-group-item text-muted';
+		li.innerText = moment.unix(visit.visitTime);
+		ul.appendChild(li);
+	}
+	return ul;
+};
 app.render.listGroupUl = function (sites) {
 	let ul = document.createElement('ul');
 	ul.className = 'list-group';
@@ -127,8 +167,10 @@ app.render.listGroupUl = function (sites) {
 		let a = document.createElement('a');
 		if (site.title) {
 			li.className = 'list-group-item text-success';
-			li.innerText = '(' + site.visitCount + ') ';
-			//li.innerText += app.utils.urlHostname(site.urlHostname) + " ";
+			if (site.visitCount) {
+				li.innerText = '(' + site.visitCount + ') ';
+			}
+			li.innerText += app.utils.urlHostname(site.urlHostname) + " ";
 			li.innerText += app.utils.urlPathname(site.urlPathname) + " ";
 			a.href = site.url;
 			a.innerText = site.title || site.url;
@@ -136,8 +178,10 @@ app.render.listGroupUl = function (sites) {
 			li.appendChild(br);
 		} else {
 			li.className = 'list-group-item text-danger';
-			li.innerText = '(' + site.visitCount + ') ';
-			//li.innerText += app.utils.urlHostname(site.urlHostname) + " ";
+			if (site.visitCount) {
+				li.innerText = '(' + site.visitCount + ') ';
+			}
+			li.innerText += app.utils.urlHostname(site.urlHostname) + " ";
 			li.innerText += app.utils.urlPathname(site.urlPathname) + " ";
 			a.href = site.url;
 			a.innerText = "link (no title)";
